@@ -4,6 +4,7 @@
 yum -y install dhcp xinetd tftp-server vsftpd wget 
 
 # 配置DHCP网络参数
+ipaddr=$(ip a | grep "scope global" | head -n 1 | awk '{print $2}' | awk -F "/" '{print $1}')
 cat > /etc/dhcp/dhcpd.conf << EOF
 default-lease-time 600;
 max-lease-time 7200;
@@ -11,7 +12,7 @@ subnet 10.10.10.0 netmask 255.255.255.0 {
   range 10.10.10.100 10.10.10.200;
   option routers 10.10.10.254;
   option domain-name-servers 114.114.114.114;
-  next-server 10.10.10.27;
+  next-server $ipaddr;
   filename "lpxelinux.0";
 }
 EOF
