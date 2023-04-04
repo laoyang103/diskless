@@ -46,8 +46,9 @@ EOF
 read -p "请按任意键继续"
 
 # 启动各种服务，关闭防火墙和selinux
-systemctl restart dhcpd
-systemctl restart xinetd
-systemctl restart vsftpd
+svcList=("dhcpd" "xinetd" "vsftpd")
+for svc in ${svcList[@]}; do
+  systemctl restart $svc
+done
 systemctl stop firewalld
 setenforce 0
