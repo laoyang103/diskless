@@ -16,7 +16,6 @@ subnet 10.10.10.0 netmask 255.255.255.0 {
   filename "lpxelinux.0";
 }
 EOF
-read -p "请按任意键继续"
 
 # 替换tftp配置文件中disable=no
 sed -i 's/disable\t\t\t= yes/disable\t\t\t= no/g' /etc/xinetd.d/tftp
@@ -26,12 +25,10 @@ tftpPath="/var/lib/tftpboot"
 wget http://192.168.10.254:8080/jxfiles/syslinux.tar.gz
 tar -zxf syslinux.tar.gz -C $tftpPath
 mv $tftpPath/syslinux604files/* $tftpPath
-read -p "请按任意键继续"
 
 # 下载win8pe镜像到/var/ftp/pub目录
 wget http://192.168.10.254:8080/iso/winpe/win8pe.iso
 mv win8pe.iso /var/ftp/pub
-read -p "请按任意键继续"
 
 # 创建启动菜单文件
 mkdir -p $tftpPath/pxelinux.cfg
@@ -43,7 +40,6 @@ LABEL win8pe
   KERNEL memdisk
   APPEND initrd=ftp://\${next-server}/pub/win8pe.iso iso raw
 EOF
-read -p "请按任意键继续"
 
 # 启动各种服务，关闭防火墙和selinux
 svcList=("dhcpd" "xinetd" "vsftpd")
