@@ -11,14 +11,44 @@ fi
 # 离线安装所需要软件包
 yum -y install rpms/*.rpm
 
+# 与用户交互选择绑定网卡
+num=1
+nicList=$(ip a | grep state | awk -F ":" '{print $2}' | sed "s/ //g")
+for nic in ${nicList[@]}; do
+  ipnet=$(ip a | grep -w $nic | grep scope | awk '{print $2}')
+  echo "$num: $nic $ipnet"
+  num=$(echo $num + 1 | bc)
+done
+read -p "请根据序号选择要绑定的网卡：" select
+selectip=$(ip a | grep scope | grep -v inet6 | sed -n $select"p" | awk '{print $2}')
+echo "你选择的网卡IP地址为：$selectip"
+
+# 计算用户选择网卡的网络地址和子网掩码
+network=$(ipcalc -n $selectip | awk -F "=" '{print $2}')
+netmask=$(ipcalc -m $selectip | awk -F "=" '{print $2}')
+
+# 计算用户选择网卡的可用IP地址范围
+IFS=. read -r i1 i2 i3 i4 <<< "$network"
+IFS=. read -r m1 m2 m3 m4 <<< "$netmask"
+net=$(( (i1 << 24) + (i2 << 16) + (i3 << 8) + i4 ))
+mask=$(( (m1 << 24) + (m2 << 16) + (m3 << 8) + m4 ))
+hostmin=$(( (net & mask) + 1 ))
+hostmax=$(( ((net & mask) | (~mask & 0xffffffff)) - 1 ))
+printf '可用IP地址范围是：%d.%d.%d.%d-%d.%d.%d.%d\n' $((hostmin >> 24)) $(( (hostmin >> 16) & 255 )) $(( (hostmin >> 8) & 255 )) $(( hostmin & 255 )) $((hostmax >> 24)) $(( (hostmax >> 16) & 255 )) $(( (hostmax >> 8) & 255 )) $(( hostmax & 255 ))
+
+# 用户客户端的网络参数
+read -p "请输入起始IP地址：" begin
+read -p "请输入结束IP地址：" end
+read -p "请输入客户端网关地址：" gateway
+
 # 配置DHCP网络参数
-ipaddr=$(ip a | grep "scope global" | head -n 1 | awk '{print $2}' | awk -F "/" '{print $1}')
+ipaddr=$(echo $selectip | awk -F "/" '{print $1}')
 cat > /etc/dhcp/dhcpd.conf << EOF
 default-lease-time 600;
 max-lease-time 7200;
-subnet 10.10.10.0 netmask 255.255.255.0 {
-  range 10.10.10.100 10.10.10.200;
-  option routers 10.10.10.254;
+subnet $network netmask $netmask {
+  range $begin $end;
+  option routers $gateway;
   option domain-name-servers $ipaddr;
   next-server $ipaddr;
   filename "lpxelinux.0";
