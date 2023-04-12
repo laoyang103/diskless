@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # 安装所需要软件包
-yum -y install dhcp xinetd tftp-server vsftpd wget 
+yum -y install dhcp xinetd tftp-server vsftpd wget samba bind unzip httpd
+read -p "请按任意键继续"
 
 # 配置DHCP网络参数
 ipaddr=$(ip a | grep "scope global" | head -n 1 | awk '{print $2}' | awk -F "/" '{print $1}')
@@ -11,7 +12,7 @@ max-lease-time 7200;
 subnet 10.10.10.0 netmask 255.255.255.0 {
   range 10.10.10.100 10.10.10.200;
   option routers 10.10.10.254;
-  option domain-name-servers 114.114.114.114;
+  option domain-name-servers $ipaddr;
   next-server $ipaddr;
   filename "lpxelinux.0";
 }
@@ -41,8 +42,62 @@ LABEL win8pe
   APPEND initrd=ftp://\${next-server}/pub/win8pe.iso iso raw
 EOF
 
+# 开启samba匿名访问
+sed -i '9i\'$'\t''map to guest = bad user' /etc/samba/smb.conf
+# 创建game共享项
+cat >> /etc/samba/smb.conf << EOF
+[game]
+	comment = some games
+	path = /var/lib/samba/game
+	guest ok = Yes
+EOF
+
+# 创建/var/lib/samba/game目录
+gamepath="/var/lib/samba/game"
+mkdir -p $gamepath
+
+# 下载八数码游戏EIGHT.zip，解压到/var/lib/samba/game
+wget http://192.168.10.254:8080/jxfiles/EIGHT.zip
+unzip EIGHT.zip -d $gamepath
+
+# 给游戏可执行程序EIGHT.exe执行权限
+chmod +x $gamepath/EIGHT/EIGHT.exe
+
+# 配置DNS的主配置文件，允许外部访问
+sed -i "s/127.0.0.1/any/g" /etc/named.conf
+sed -i "s/::1/any/g" /etc/named.conf
+sed -i "s/localhost/any/g" /etc/named.conf
+
+# 定义域名空间qq.com
+cat >> /etc/named.rfc1912.zones << EOF
+zone "qq.com" IN {
+        type master;
+        file "named.qq.com";
+        allow-update { none; };
+};
+EOF
+
+# 定义qq.com域名空间的解析记录
+cat > /var/named/named.qq.com << EOF
+\$TTL 1D
+@	IN SOA	@ rname.invalid. (
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	127.0.0.1
+www	A	$ipaddr
+bbs	A	$ipaddr
+	AAAA	::1
+EOF
+
+# 创建网站首页index.html，内容为nononono
+echo "nononono" > /var/www/html/index.html
+
 # 启动各种服务，关闭防火墙和selinux
-svcList=("dhcpd" "xinetd" "vsftpd")
+svcList=("dhcpd" "xinetd" "vsftpd" "smb" "named" "httpd")
 for svc in ${svcList[@]}; do
   systemctl restart $svc
 done
