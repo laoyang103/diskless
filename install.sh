@@ -1,8 +1,15 @@
 #!/bin/bash
 
-# 安装所需要软件包
-yum -y install dhcp xinetd tftp-server vsftpd wget samba bind unzip httpd
-read -p "请按任意键继续"
+# 保证客户端操作系统存在
+if [ ! -e "win8pe.iso" ]; then
+  echo "未检测到客户端系统win8pe.iso"
+  echo "请将客户端的启动镜像放到与安装脚本install.sh同一目录下，并命名为win8pe.iso"
+  echo "如果自己没有可以到http://192.168.10.254:8080/iso/winpe/win8pe.iso去下载"
+  exit
+fi
+
+# 离线安装所需要软件包
+yum -y install rpms/*.rpm
 
 # 配置DHCP网络参数
 ipaddr=$(ip a | grep "scope global" | head -n 1 | awk '{print $2}' | awk -F "/" '{print $1}')
@@ -22,13 +29,11 @@ EOF
 sed -i 's/disable\t\t\t= yes/disable\t\t\t= no/g' /etc/xinetd.d/tftp
 
 tftpPath="/var/lib/tftpboot"
-# 下载启动引导程序，解压到tftp目录
-wget http://192.168.10.254:8080/jxfiles/syslinux.tar.gz
+# 解压启动引导程序到tftp目录
 tar -zxf syslinux.tar.gz -C $tftpPath
 mv $tftpPath/syslinux604files/* $tftpPath
 
-# 下载win8pe镜像到/var/ftp/pub目录
-wget http://192.168.10.254:8080/iso/winpe/win8pe.iso
+# 移动win8pe镜像到/var/ftp/pub目录
 mv win8pe.iso /var/ftp/pub
 
 # 创建启动菜单文件
@@ -57,7 +62,6 @@ gamepath="/var/lib/samba/game"
 mkdir -p $gamepath
 
 # 下载八数码游戏EIGHT.zip，解压到/var/lib/samba/game
-wget http://192.168.10.254:8080/jxfiles/EIGHT.zip
 unzip EIGHT.zip -d $gamepath
 
 # 给游戏可执行程序EIGHT.exe执行权限
