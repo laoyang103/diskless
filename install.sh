@@ -4,7 +4,7 @@
 if [ ! -e "win8pe.iso" ]; then
   echo "未检测到客户端系统win8pe.iso"
   echo "请将客户端的启动镜像放到与安装脚本install.sh同一目录下，并命名为win8pe.iso"
-  echo "如果自己没有可以到http://192.168.10.254:8080/iso/winpe/win8pe.iso去下载"
+  echo "如果自己没有可以到http://stu.jxit.net.cn:88/iso/winpe/HotPE.iso去下载"
   exit
 fi
 
